@@ -5060,6 +5060,8 @@ static int perf_event_set_filter(struct perf_event *event, void __user *arg);
 static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd);
 static int perf_copy_attr(struct perf_event_attr __user *uattr,
 			  struct perf_event_attr *attr);
+static int perf_probe_event_query(struct perf_event *event,
+				    void __user *info);
 
 static long _perf_ioctl(struct perf_event *event, unsigned int cmd, unsigned long arg)
 {
@@ -5143,6 +5145,10 @@ static long _perf_ioctl(struct perf_event *event, unsigned int cmd, unsigned lon
 
 		return perf_event_modify_attr(event,  &new_attr);
 	}
+#if defined(CONFIG_KPROBE_EVENTS) || defined(CONFIG_UPROBE_EVENTS)
+	case PERF_EVENT_IOC_QUERY_PROBE:
+		return perf_probe_event_query(event, (void __user *)arg);
+#endif
 	default:
 		return -ENOTTY;
 	}
@@ -8831,6 +8837,20 @@ static inline void perf_tp_register(void)
 #ifdef CONFIG_UPROBE_EVENTS
 	perf_pmu_register(&perf_uprobe, "uprobe", -1);
 #endif
+}
+
+static int perf_probe_event_query(struct perf_event *event,
+				    void __user *info)
+{
+#ifdef CONFIG_KPROBE_EVENTS
+	if (event->attr.type == perf_kprobe.type)
+		return perf_kprobe_event_query(event, (void __user *)info);
+#endif
+#ifdef CONFIG_UPROBE_EVENTS
+	if (event->attr.type == perf_uprobe.type)
+		return perf_uprobe_event_query(event, (void __user *)info);
+#endif
+	return -EINVAL;
 }
 
 static void perf_event_free_filter(struct perf_event *event)

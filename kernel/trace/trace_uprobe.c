@@ -1333,6 +1333,29 @@ static inline void init_trace_event_call(struct trace_uprobe *tu)
 	call->data = tu;
 }
 
+int perf_uprobe_event_query(struct perf_event *event, void __user *info)
+{
+	struct perf_event_query_probe __user *uquery = info;
+	struct perf_event_query_probe query = {};
+	struct trace_event_call *call = event->tp_event;
+	struct trace_uprobe *tu = (struct trace_uprobe *)call->data;
+	u64 nmissed, nhit;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (copy_from_user(&query, uquery, sizeof(query)))
+		return -EFAULT;
+
+	nhit = tu->nhit;
+	nmissed = 0;
+
+	if (put_user(nmissed, &uquery->nmissed) ||
+	    put_user(nhit, &uquery->nhit))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int register_uprobe_event(struct trace_uprobe *tu)
 {
 	init_trace_event_call(tu);

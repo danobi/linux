@@ -196,6 +196,29 @@ bool trace_kprobe_error_injectable(struct trace_event_call *call)
 	return within_error_injection_list(trace_kprobe_address(tk));
 }
 
+int perf_kprobe_event_query(struct perf_event *event, void __user *info)
+{
+	struct perf_event_query_probe __user *uquery = info;
+	struct perf_event_query_probe query = {};
+	struct trace_event_call *call = event->tp_event;
+	struct trace_kprobe *tk = (struct trace_kprobe *)call->data;
+	u64 nmissed, nhit;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (copy_from_user(&query, uquery, sizeof(query)))
+		return -EFAULT;
+
+	nhit = trace_kprobe_nhit(tk);
+	nmissed = tk->rp.kp.nmissed;
+
+	if (put_user(nmissed, &uquery->nmissed) ||
+	    put_user(nhit, &uquery->nhit))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int register_kprobe_event(struct trace_kprobe *tk);
 static int unregister_kprobe_event(struct trace_kprobe *tk);
 
