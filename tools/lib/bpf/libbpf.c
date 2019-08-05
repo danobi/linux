@@ -4004,6 +4004,25 @@ static int bpf_link__destroy_perf_event(struct bpf_link *link)
 	return err;
 }
 
+const struct bpf_link_fd *bpf_link__as_fd(const struct bpf_link *link)
+{
+	if (!link)
+		return NULL;
+
+	if (link->destroy != &bpf_link__destroy_perf_event)
+		return NULL;
+
+	return (struct bpf_link_fd *)link;
+}
+
+int bpf_link_fd__fd(const struct bpf_link_fd *link)
+{
+	if (!link)
+		return -1;
+
+	return link->fd;
+}
+
 struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog,
 						int pfd)
 {
