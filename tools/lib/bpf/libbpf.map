@@ -189,4 +189,7 @@ LIBBPF_0.0.4 {
 LIBBPF_0.0.5 {
 	global:
 		bpf_btf_get_next_id;
+		bpf_link__type;
+		bpf_link__as_fd;
+		bpf_link_fd__fd;
 } LIBBPF_0.0.4;

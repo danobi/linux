@@ -4875,6 +4875,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 
 struct bpf_link {
 	int (*destroy)(struct bpf_link *link);
+	enum bpf_link_type type;
 };
 
 int bpf_link__destroy(struct bpf_link *link)
@@ -4908,6 +4909,24 @@ static int bpf_link__destroy_perf_event(struct bpf_link *link)
 	return err;
 }
 
+const struct bpf_link_fd *bpf_link__as_fd(const struct bpf_link *link)
+{
+	if (link->type != LIBBPF_LINK_FD)
+		return NULL;
+
+	return (struct bpf_link_fd *)link;
+}
+
+enum bpf_link_type bpf_link__type(const struct bpf_link *link)
+{
+	return link->type;
+}
+
+int bpf_link_fd__fd(const struct bpf_link_fd *link)
+{
+	return link->fd;
+}
+
 struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog,
 						int pfd)
 {
@@ -4931,6 +4950,7 @@ struct bpf_link *bpf_program__attach_perf_event(struct bpf_program *prog,
 	if (!link)
 		return ERR_PTR(-ENOMEM);
 	link->link.destroy = &bpf_link__destroy_perf_event;
+	link->link.type = LIBBPF_LINK_FD;
 	link->fd = pfd;
 
 	if (ioctl(pfd, PERF_EVENT_IOC_SET_BPF, prog_fd) < 0) {
@@ -5224,6 +5244,7 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(struct bpf_program *prog,
 	link = malloc(sizeof(*link));
 	if (!link)
 		return ERR_PTR(-ENOMEM);
+	link->link.type = LIBBPF_LINK_FD;
 	link->link.destroy = &bpf_link__destroy_fd;
 
 	pfd = bpf_raw_tracepoint_open(tp_name, prog_fd);
