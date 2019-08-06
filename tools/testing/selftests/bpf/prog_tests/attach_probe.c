@@ -27,17 +27,27 @@ void test_attach_probe(void)
 	const char *kretprobe_name = "kretprobe/sys_nanosleep";
 	const char *uprobe_name = "uprobe/trigger_func";
 	const char *uretprobe_name = "uretprobe/trigger_func";
+	struct perf_event_query_probe kprobe_query = {};
+	struct perf_event_query_probe kretprobe_query = {};
+	struct perf_event_query_probe uprobe_query = {};
+	struct perf_event_query_probe uretprobe_query = {};
 	const int kprobe_idx = 0, kretprobe_idx = 1;
 	const int uprobe_idx = 2, uretprobe_idx = 3;
 	const char *file = "./test_attach_probe.o";
 	struct bpf_program *kprobe_prog, *kretprobe_prog;
 	struct bpf_program *uprobe_prog, *uretprobe_prog;
 	struct bpf_object *obj;
+	const struct bpf_link_fd *kprobe_fd_link;
+	const struct bpf_link_fd *kretprobe_fd_link;
+	const struct bpf_link_fd *uprobe_fd_link;
+	const struct bpf_link_fd *uretprobe_fd_link;
 	int err, prog_fd, duration = 0, res;
 	struct bpf_link *kprobe_link = NULL;
 	struct bpf_link *kretprobe_link = NULL;
 	struct bpf_link *uprobe_link = NULL;
 	struct bpf_link *uretprobe_link = NULL;
+	int kprobe_fd, kretprobe_fd;
+	int uprobe_fd, uretprobe_fd;
 	int results_map_fd;
 	size_t uprobe_offset;
 	ssize_t base_addr;
@@ -116,6 +126,52 @@ void test_attach_probe(void)
 	/* trigger & validate kprobe && kretprobe */
 	usleep(1);
 
+	kprobe_fd_link = bpf_link__as_fd(kprobe_link);
+	if (CHECK(!kprobe_fd_link, "kprobe_link_as_fd",
+		  "failed to cast link to fd link\n"))
+		goto cleanup;
+
+	kprobe_fd = bpf_link_fd__fd(kprobe_fd_link);
+	if (CHECK(kprobe_fd < 0, "kprobe_get_perf_fd",
+	    "failed to get perf fd from kprobe link\n"))
+		goto cleanup;
+
+	kretprobe_fd_link = bpf_link__as_fd(kretprobe_link);
+	if (CHECK(!kretprobe_fd_link, "kretprobe_link_as_fd",
+		  "failed to cast link to fd link\n"))
+		goto cleanup;
+
+	kretprobe_fd = bpf_link_fd__fd(kretprobe_fd_link);
+	if (CHECK(kretprobe_fd < 0, "kretprobe_get_perf_fd",
+	    "failed to get perf fd from kretprobe link\n"))
+		goto cleanup;
+
+	err = ioctl(kprobe_fd, PERF_EVENT_IOC_QUERY_PROBE, &kprobe_query);
+	if (CHECK(err, "get_kprobe_ioctl",
+		  "failed to issue kprobe query ioctl\n"))
+		goto cleanup;
+	if (CHECK(kprobe_query.nmissed > 0, "get_kprobe_ioctl",
+		  "read incorrect nmissed from kprobe_ioctl: %llu\n",
+		  kprobe_query.nmissed))
+		goto cleanup;
+	if (CHECK(kprobe_query.nhit == 0, "get_kprobe_ioctl",
+		  "read incorrect nhit from kprobe_ioctl: %llu\n",
+		  kprobe_query.nhit))
+		goto cleanup;
+
+	err = ioctl(kretprobe_fd, PERF_EVENT_IOC_QUERY_PROBE, &kretprobe_query);
+	if (CHECK(err, "get_kretprobe_ioctl",
+		  "failed to issue kretprobe query ioctl\n"))
+		goto cleanup;
+	if (CHECK(kretprobe_query.nmissed > 0, "get_kretprobe_ioctl",
+		  "read incorrect nmissed from kretprobe_ioctl: %llu\n",
+		  kretprobe_query.nmissed))
+		goto cleanup;
+	if (CHECK(kretprobe_query.nhit <= 0, "get_kretprobe_ioctl",
+		  "read incorrect nhit from kretprobe_ioctl: %llu\n",
+		  kretprobe_query.nhit))
+		goto cleanup;
+
 	err = bpf_map_lookup_elem(results_map_fd, &kprobe_idx, &res);
 	if (CHECK(err, "get_kprobe_res",
 		  "failed to get kprobe res: %d\n", err))
@@ -134,6 +190,52 @@ void test_attach_probe(void)
 
 	/* trigger & validate uprobe & uretprobe */
 	get_base_addr();
+
+	uprobe_fd_link = bpf_link__as_fd(uprobe_link);
+	if (CHECK(!uprobe_fd_link, "uprobe_link_as_fd",
+		  "failed to cast link to fd link\n"))
+		goto cleanup;
+
+	uprobe_fd = bpf_link_fd__fd(uprobe_fd_link);
+	if (CHECK(uprobe_fd < 0, "uprobe_get_perf_fd",
+	    "failed to get perf fd from uprobe link\n"))
+		goto cleanup;
+
+	uretprobe_fd_link = bpf_link__as_fd(uretprobe_link);
+	if (CHECK(!uretprobe_fd_link, "uretprobe_link_as_fd",
+		  "failed to cast link to fd link\n"))
+		goto cleanup;
+
+	uretprobe_fd = bpf_link_fd__fd(uretprobe_fd_link);
+	if (CHECK(uretprobe_fd < 0, "uretprobe_get_perf_fd",
+	    "failed to get perf fd from uretprobe link\n"))
+		goto cleanup;
+
+	err = ioctl(uprobe_fd, PERF_EVENT_IOC_QUERY_PROBE, &uprobe_query);
+	if (CHECK(err, "get_uprobe_ioctl",
+		  "failed to issue uprobe query ioctl\n"))
+		goto cleanup;
+	if (CHECK(uprobe_query.nmissed > 0, "get_uprobe_ioctl",
+		  "read incorrect nmissed from uprobe_ioctl: %llu\n",
+		  uprobe_query.nmissed))
+		goto cleanup;
+	if (CHECK(uprobe_query.nhit == 0, "get_uprobe_ioctl",
+		  "read incorrect nhit from uprobe_ioctl: %llu\n",
+		  uprobe_query.nhit))
+		goto cleanup;
+
+	err = ioctl(uretprobe_fd, PERF_EVENT_IOC_QUERY_PROBE, &uretprobe_query);
+	if (CHECK(err, "get_uretprobe_ioctl",
+		  "failed to issue uretprobe query ioctl\n"))
+		goto cleanup;
+	if (CHECK(uretprobe_query.nmissed > 0, "get_uretprobe_ioctl",
+		  "read incorrect nmissed from uretprobe_ioctl: %llu\n",
+		  uretprobe_query.nmissed))
+		goto cleanup;
+	if (CHECK(uretprobe_query.nhit <= 0, "get_uretprobe_ioctl",
+		  "read incorrect nhit from uretprobe_ioctl: %llu\n",
+		  uretprobe_query.nhit))
+		goto cleanup;
 
 	err = bpf_map_lookup_elem(results_map_fd, &uprobe_idx, &res);
 	if (CHECK(err, "get_uprobe_res",
