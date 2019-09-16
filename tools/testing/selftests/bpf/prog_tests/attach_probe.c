@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
+struct perf_read_output {
+	u64 count;
+	u64 lost;
+};
+
 ssize_t get_base_addr() {
 	size_t start;
 	char buf[256];
@@ -32,6 +37,8 @@ void test_attach_probe(void)
 	const char *file = "./test_attach_probe.o";
 	struct bpf_program *kprobe_prog, *kretprobe_prog;
 	struct bpf_program *uprobe_prog, *uretprobe_prog;
+	struct perf_read_output kprobe_read_output;
+	const struct bpf_link_fd *kprobe_fd_link;
 	struct bpf_object *obj;
 	int err, prog_fd, duration = 0, res;
 	struct bpf_link *kprobe_link = NULL;
@@ -40,7 +47,8 @@ void test_attach_probe(void)
 	struct bpf_link *uretprobe_link = NULL;
 	int results_map_fd;
 	size_t uprobe_offset;
-	ssize_t base_addr;
+	ssize_t base_addr, nread;
+	int kprobe_fd;
 
 	base_addr = get_base_addr();
 	if (CHECK(base_addr < 0, "get_base_addr",
@@ -115,6 +123,28 @@ void test_attach_probe(void)
 
 	/* trigger & validate kprobe && kretprobe */
 	usleep(1);
+
+	kprobe_fd_link = bpf_link__as_fd(kprobe_link);
+	if (CHECK(!kprobe_fd_link, "kprobe_link_as_fd",
+		  "failed to cast link to fd link\n"))
+		goto cleanup;
+
+	kprobe_fd = bpf_link_fd__fd(kprobe_fd_link);
+	if (CHECK(kprobe_fd < 0, "kprobe_get_perf_fd",
+	    "failed to get perf fd from kprobe link\n"))
+		goto cleanup;
+
+	/* Set to unexpected value so we can check the read(2) did stuff */
+	kprobe_read_output.lost = 1;
+	nread = read(kprobe_fd, &kprobe_read_output,
+		     sizeof(kprobe_read_output));
+	if (CHECK(nread != sizeof(kprobe_read_output), "kprobe_perf_read",
+		  "failed to read from perf fd\n"))
+		goto cleanup;
+	if (CHECK(kprobe_read_output.lost != 0, "kprobe_lost",
+		  "read wrong value from perf fd: %lu\n",
+		  kprobe_read_output.lost))
+		goto cleanup;
 
 	err = bpf_map_lookup_elem(results_map_fd, &kprobe_idx, &res);
 	if (CHECK(err, "get_kprobe_res",
