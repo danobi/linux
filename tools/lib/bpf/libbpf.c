@@ -5031,7 +5031,7 @@ static int determine_uprobe_retprobe_bit(void)
 }
 
 static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
-				 uint64_t offset, int pid)
+				 uint64_t offset, int pid, uint64_t read_format)
 {
 	struct perf_event_attr attr = {};
 	char errmsg[STRERR_BUFSIZE];
@@ -5060,6 +5060,7 @@ static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
 	}
 	attr.size = sizeof(attr);
 	attr.type = type;
+	attr.read_format = read_format;
 	attr.config1 = ptr_to_u64(name); /* kprobe_func or uprobe_path */
 	attr.config2 = offset;		 /* kprobe_addr or probe_offset */
 
@@ -5087,7 +5088,8 @@ struct bpf_link *bpf_program__attach_kprobe(struct bpf_program *prog,
 	int pfd, err;
 
 	pfd = perf_event_open_probe(false /* uprobe */, retprobe, func_name,
-				    0 /* offset */, -1 /* pid */);
+				    0 /* offset */, -1 /* pid */,
+				    PERF_FORMAT_LOST /* read_format */);
 	if (pfd < 0) {
 		pr_warning("program '%s': failed to create %s '%s' perf event: %s\n",
 			   bpf_program__title(prog, false),
@@ -5118,7 +5120,8 @@ struct bpf_link *bpf_program__attach_uprobe(struct bpf_program *prog,
 	int pfd, err;
 
 	pfd = perf_event_open_probe(true /* uprobe */, retprobe,
-				    binary_path, func_offset, pid);
+				    binary_path, func_offset, pid,
+				    0 /* read_format */);
 	if (pfd < 0) {
 		pr_warning("program '%s': failed to create %s '%s:0x%zx' perf event: %s\n",
 			   bpf_program__title(prog, false),
