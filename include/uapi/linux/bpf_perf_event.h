@@ -10,10 +10,15 @@
 
 #include <asm/bpf_perf_event.h>
 
+#define BPF_MAX_LBR_ENTRIES 32
+
 struct bpf_perf_event_data {
 	bpf_user_pt_regs_t regs;
 	__u64 sample_period;
 	__u64 addr;
+	__u64 nr_lbr;
+	/* Cast to struct perf_branch_entry* before using */
+	__u64 entries[BPF_MAX_LBR_ENTRIES * 3];
 };
 
 #endif /* _UAPI__LINUX_BPF_PERF_EVENT_H__ */
