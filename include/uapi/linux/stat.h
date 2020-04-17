@@ -6,17 +6,19 @@
 
 #if defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2)
 
-#define S_IFMT  00170000
-#define S_IFSOCK 0140000
-#define S_IFLNK	 0120000
-#define S_IFREG  0100000
-#define S_IFBLK  0060000
-#define S_IFDIR  0040000
-#define S_IFCHR  0020000
-#define S_IFIFO  0010000
-#define S_ISUID  0004000
-#define S_ISGID  0002000
-#define S_ISVTX  0001000
+enum {
+	S_IFMT    = 00170000,
+	S_IFSOCK  = 0140000,
+	S_IFLNK	  = 0120000,
+	S_IFREG   = 0100000,
+	S_IFBLK   = 0060000,
+	S_IFDIR   = 0040000,
+	S_IFCHR   = 0020000,
+	S_IFIFO   = 0010000,
+	S_ISUID   = 0004000,
+	S_ISGID   = 0002000,
+	S_ISVTX   = 0001000,
+};
 
 #define S_ISLNK(m)	(((m) & S_IFMT) == S_IFLNK)
 #define S_ISREG(m)	(((m) & S_IFMT) == S_IFREG)
@@ -26,20 +28,22 @@
 #define S_ISFIFO(m)	(((m) & S_IFMT) == S_IFIFO)
 #define S_ISSOCK(m)	(((m) & S_IFMT) == S_IFSOCK)
 
-#define S_IRWXU 00700
-#define S_IRUSR 00400
-#define S_IWUSR 00200
-#define S_IXUSR 00100
+enum {
+	S_IRWXU   = 00700,
+	S_IRUSR   = 00400,
+	S_IWUSR   = 00200,
+	S_IXUSR   = 00100,
 
-#define S_IRWXG 00070
-#define S_IRGRP 00040
-#define S_IWGRP 00020
-#define S_IXGRP 00010
+	S_IRWXG   = 00070,
+	S_IRGRP   = 00040,
+	S_IWGRP   = 00020,
+	S_IXGRP   = 00010,
 
-#define S_IRWXO 00007
-#define S_IROTH 00004
-#define S_IWOTH 00002
-#define S_IXOTH 00001
+	S_IRWXO   = 00007,
+	S_IROTH   = 00004,
+	S_IWOTH   = 00002,
+	S_IXOTH   = 00001,
+};
 
 #endif
 
@@ -135,21 +139,23 @@ struct statx {
  * These bits should be set in the mask argument of statx() to request
  * particular items when calling statx().
  */
-#define STATX_TYPE		0x00000001U	/* Want/got stx_mode & S_IFMT */
-#define STATX_MODE		0x00000002U	/* Want/got stx_mode & ~S_IFMT */
-#define STATX_NLINK		0x00000004U	/* Want/got stx_nlink */
-#define STATX_UID		0x00000008U	/* Want/got stx_uid */
-#define STATX_GID		0x00000010U	/* Want/got stx_gid */
-#define STATX_ATIME		0x00000020U	/* Want/got stx_atime */
-#define STATX_MTIME		0x00000040U	/* Want/got stx_mtime */
-#define STATX_CTIME		0x00000080U	/* Want/got stx_ctime */
-#define STATX_INO		0x00000100U	/* Want/got stx_ino */
-#define STATX_SIZE		0x00000200U	/* Want/got stx_size */
-#define STATX_BLOCKS		0x00000400U	/* Want/got stx_blocks */
-#define STATX_BASIC_STATS	0x000007ffU	/* The stuff in the normal stat struct */
-#define STATX_BTIME		0x00000800U	/* Want/got stx_btime */
-#define STATX_ALL		0x00000fffU	/* All currently supported flags */
-#define STATX__RESERVED		0x80000000U	/* Reserved for future struct statx expansion */
+enum {
+	STATX_TYPE		= 0x00000001U,	/* Want/got stx_mode & S_IFMT */
+	STATX_MODE		= 0x00000002U,	/* Want/got stx_mode & ~S_IFMT */
+	STATX_NLINK		= 0x00000004U,	/* Want/got stx_nlink */
+	STATX_UID		= 0x00000008U,	/* Want/got stx_uid */
+	STATX_GID		= 0x00000010U,	/* Want/got stx_gid */
+	STATX_ATIME		= 0x00000020U,	/* Want/got stx_atime */
+	STATX_MTIME		= 0x00000040U,	/* Want/got stx_mtime */
+	STATX_CTIME		= 0x00000080U,	/* Want/got stx_ctime */
+	STATX_INO		= 0x00000100U,	/* Want/got stx_ino */
+	STATX_SIZE		= 0x00000200U,	/* Want/got stx_size */
+	STATX_BLOCKS		= 0x00000400U,	/* Want/got stx_blocks */
+	STATX_BASIC_STATS	= 0x000007ffU,	/* The stuff in the normal stat struct */
+	STATX_BTIME		= 0x00000800U,	/* Want/got stx_btime */
+	STATX_ALL		= 0x00000fffU,	/* All currently supported flags */
+	STATX__RESERVED		= 0x80000000U,	/* Reserved for future struct statx expansion */
+};
 
 /*
  * Attributes to be found in stx_attributes and masked in stx_attributes_mask.
@@ -162,13 +168,14 @@ struct statx {
  * semantically.  Where possible, the numerical value is picked to correspond
  * also.
  */
-#define STATX_ATTR_COMPRESSED		0x00000004 /* [I] File is compressed by the fs */
-#define STATX_ATTR_IMMUTABLE		0x00000010 /* [I] File is marked immutable */
-#define STATX_ATTR_APPEND		0x00000020 /* [I] File is append-only */
-#define STATX_ATTR_NODUMP		0x00000040 /* [I] File is not to be dumped */
-#define STATX_ATTR_ENCRYPTED		0x00000800 /* [I] File requires key to decrypt in fs */
-#define STATX_ATTR_AUTOMOUNT		0x00001000 /* Dir: Automount trigger */
-#define STATX_ATTR_VERITY		0x00100000 /* [I] Verity protected file */
-
+enum {
+	STATX_ATTR_COMPRESSED		= 0x00000004, /* [I] File is compressed by the fs */
+	STATX_ATTR_IMMUTABLE		= 0x00000010, /* [I] File is marked immutable */
+	STATX_ATTR_APPEND		= 0x00000020, /* [I] File is append-only */
+	STATX_ATTR_NODUMP		= 0x00000040, /* [I] File is not to be dumped */
+	STATX_ATTR_ENCRYPTED		= 0x00000800, /* [I] File requires key to decrypt in fs */
+	STATX_ATTR_AUTOMOUNT		= 0x00001000, /* Dir: Automount trigger */
+	STATX_ATTR_VERITY		= 0x00100000, /* [I] Verity protected file */
+};
 
 #endif /* _UAPI_LINUX_STAT_H */
