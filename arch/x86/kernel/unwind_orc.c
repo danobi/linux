@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include <linux/kprobes.h>
 #include <linux/objtool.h>
 #include <linux/module.h>
 #include <linux/sort.h>
+#include <asm/kprobes.h>
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 #include <asm/unwind.h>
@@ -77,9 +79,11 @@ static struct orc_entry *orc_module_find(unsigned long ip)
 }
 #endif
 
-#ifdef CONFIG_DYNAMIC_FTRACE
+#if defined(CONFIG_DYNAMIC_FTRACE) || defined(CONFIG_KRETPROBES)
 static struct orc_entry *orc_find(unsigned long ip);
+#endif
 
+#ifdef CONFIG_DYNAMIC_FTRACE
 /*
  * Ftrace dynamic trampolines do not have orc entries of their own.
  * But they are copies of the ftrace entries that are static and
@@ -117,6 +121,43 @@ static struct orc_entry *orc_ftrace_find(unsigned long ip)
 }
 #endif
 
+#ifdef CONFIG_KRETPROBES
+static struct orc_entry *orc_kretprobe_find(void)
+{
+	kprobe_opcode_t *correct_ret_addr = NULL;
+	struct kretprobe_instance *ri = NULL;
+	struct llist_node *node;
+
+	node = current->kretprobe_instances.first;
+	while (node) {
+		ri = container_of(node, struct kretprobe_instance, llist);
+
+		if ((void *)ri->ret_addr != &kretprobe_trampoline) {
+			/*
+			 * This is the real return address. Any other
+			 * instances associated with this task are for
+			 * other calls deeper on the call stack
+			 */
+			correct_ret_addr = ri->ret_addr;
+			break;
+		}
+
+
+		node = node->next;
+	}
+
+	if (!correct_ret_addr)
+		return NULL;
+
+	return orc_find((unsigned long)correct_ret_addr);
+}
+#else
+static struct orc_entry *orc_kretprobe_find(void)
+{
+	return NULL;
+}
+#endif
+
 /*
  * If we crash with IP==0, the last successfully executed instruction
  * was probably an indirect function call with a NULL function pointer,
@@ -147,6 +188,16 @@ static struct orc_entry *orc_find(unsigned long ip)
 
 	if (ip == 0)
 		return &null_orc_entry;
+
+	/*
+	 * Kretprobe lookup -- must occur before vmlinux addresses as
+	 * kretprobe_trampoline is in the symbol table.
+	 */
+	if (ip == (unsigned long) &kretprobe_trampoline) {
+		orc = orc_kretprobe_find();
+		if (orc)
+			return orc;
+	}
 
 	/* For non-init vmlinux addresses, use the fast lookup table: */
 	if (ip >= LOOKUP_START_IP && ip < LOOKUP_STOP_IP) {

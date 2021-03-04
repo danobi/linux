@@ -1895,10 +1895,6 @@ unsigned long __kretprobe_trampoline_handler(struct pt_regs *regs,
 	BUG_ON(1);
 
 found:
-	/* Unlink all nodes for this frame. */
-	current->kretprobe_instances.first = node->next;
-	node->next = NULL;
-
 	/* Run them..  */
 	while (first) {
 		ri = container_of(first, struct kretprobe_instance, llist);
@@ -1916,6 +1912,10 @@ found:
 
 		recycle_rp_inst(ri);
 	}
+
+	/* Unlink all nodes for this frame. */
+	current->kretprobe_instances.first = node->next;
+	node->next = NULL;
 
 	return (unsigned long)correct_ret_addr;
 }
