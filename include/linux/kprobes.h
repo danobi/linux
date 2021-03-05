@@ -215,6 +215,10 @@ static nokprobe_inline void *kretprobe_trampoline_addr(void)
 	return dereference_function_descriptor(kretprobe_trampoline);
 }
 
+unsigned long kretprobe_find_ret_addr(unsigned long addr,
+				      struct task_struct *tsk,
+				      struct llist_node **cur);
+
 /* If the trampoline handler called from a kprobe, use this version */
 unsigned long __kretprobe_trampoline_handler(struct pt_regs *regs,
 					     void *frame_pointer);
@@ -511,6 +515,15 @@ static inline bool is_kprobe_insn_slot(unsigned long addr)
 static inline bool is_kprobe_optinsn_slot(unsigned long addr)
 {
 	return false;
+}
+#endif
+
+#if !defined(CONFIG_KPROBES) || !defined(CONFIG_KRETPROBES)
+static inline unsigned long kretprobe_find_ret_addr(unsigned long addr,
+					      struct task_struct *tsk,
+					      struct llist_node **cur)
+{
+	return addr;
 }
 #endif
 
