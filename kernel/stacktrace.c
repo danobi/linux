@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/kallsyms.h>
 #include <linux/stacktrace.h>
+#include <linux/kprobes.h>
 
 /**
  * stack_trace_print - Print the entries in the stack trace
@@ -69,6 +70,17 @@ int stack_trace_snprint(char *buf, size_t size, const unsigned long *entries,
 }
 EXPORT_SYMBOL_GPL(stack_trace_snprint);
 
+static void fixup_kretprobe_tramp_addr(unsigned long *store, unsigned int len,
+				       struct task_struct *tsk)
+{
+	struct llist_node *cur = NULL;
+
+	while (len--) {
+		*store = kretprobe_find_ret_addr(*store, tsk, &cur);
+		store++;
+	}
+}
+
 #ifdef CONFIG_ARCH_STACKWALK
 
 struct stacktrace_cookie {
@@ -119,6 +131,7 @@ unsigned int stack_trace_save(unsigned long *store, unsigned int size,
 	};
 
 	arch_stack_walk(consume_entry, &c, current, NULL);
+	fixup_kretprobe_tramp_addr(store, c.len, current);
 	return c.len;
 }
 EXPORT_SYMBOL_GPL(stack_trace_save);
@@ -147,6 +160,7 @@ unsigned int stack_trace_save_tsk(struct task_struct *tsk, unsigned long *store,
 		return 0;
 
 	arch_stack_walk(consume_entry, &c, tsk, NULL);
+	fixup_kretprobe_tramp_addr(store, c.len, tsk);
 	put_task_stack(tsk);
 	return c.len;
 }
@@ -171,6 +185,7 @@ unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
 	};
 
 	arch_stack_walk(consume_entry, &c, current, regs);
+	fixup_kretprobe_tramp_addr(store, c.len, current);
 	return c.len;
 }
 
@@ -205,6 +220,8 @@ int stack_trace_save_tsk_reliable(struct task_struct *tsk, unsigned long *store,
 		return 0;
 
 	ret = arch_stack_walk_reliable(consume_entry, &c, tsk);
+	if (!ret)
+		fixup_kretprobe_tramp_addr(store, c.len, tsk);
 	put_task_stack(tsk);
 	return ret ? ret : c.len;
 }
@@ -276,6 +293,8 @@ unsigned int stack_trace_save(unsigned long *store, unsigned int size,
 	};
 
 	save_stack_trace(&trace);
+	fixup_kretprobe_tramp_addr(store, trace.nr_entries, current);
+
 	return trace.nr_entries;
 }
 EXPORT_SYMBOL_GPL(stack_trace_save);
@@ -323,6 +342,8 @@ unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
 	};
 
 	save_stack_trace_regs(regs, &trace);
+	fixup_kretprobe_tramp_addr(store, trace.nr_entries, current);
+
 	return trace.nr_entries;
 }
 
