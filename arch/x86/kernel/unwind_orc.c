@@ -2,6 +2,7 @@
 #include <linux/objtool.h>
 #include <linux/module.h>
 #include <linux/sort.h>
+#include <linux/kprobes.h>
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 #include <asm/unwind.h>
@@ -414,6 +415,30 @@ static bool get_reg(struct unwind_state *state, unsigned int reg_off,
 	return false;
 }
 
+#ifdef CONFIG_KRETPROBES
+static unsigned long orc_kretprobe_correct_ip(struct unwind_state *state)
+{
+	return kretprobe_find_ret_addr(
+			(unsigned long)kretprobe_trampoline_addr(),
+			state->task, &state->kr_iter);
+}
+
+static bool is_kretprobe_trampoline_address(unsigned long ip)
+{
+	return ip == (unsigned long)kretprobe_trampoline_addr();
+}
+#else
+static unsigned long orc_kretprobe_correct_ip(struct unwind_state *state)
+{
+	return state->ip;
+}
+
+static bool is_kretprobe_trampoline_address(unsigned long ip)
+{
+	return false;
+}
+#endif
+
 bool unwind_next_frame(struct unwind_state *state)
 {
 	unsigned long ip_p, sp, tmp, orig_ip = state->ip, prev_sp = state->sp;
@@ -536,6 +561,18 @@ bool unwind_next_frame(struct unwind_state *state)
 
 		state->ip = ftrace_graph_ret_addr(state->task, &state->graph_idx,
 						  state->ip, (void *)ip_p);
+		/*
+		 * There are special cases when the stack unwinder is called
+		 * from the kretprobe handler or the interrupt handler which
+		 * occurs in the kretprobe trampoline code. In those cases,
+		 * %sp is shown on the stack instead of the return address.
+		 * Or, when the unwinder find the return address is replaced
+		 * by kretprobe_trampoline.
+		 * In those cases, correct address can be found in kretprobe.
+		 */
+		if (state->ip == sp ||
+		    is_kretprobe_trampoline_address(state->ip))
+			state->ip = orc_kretprobe_correct_ip(state);
 
 		state->sp = sp;
 		state->regs = NULL;
@@ -649,6 +686,12 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		state->full_regs = true;
 		state->signal = true;
 
+		/*
+		 * When the unwinder called with regs from kretprobe handler,
+		 * the regs->ip starts from kretprobe_trampoline address.
+		 */
+		if (is_kretprobe_trampoline_address(state->ip))
+			state->ip = orc_kretprobe_correct_ip(state);
 	} else if (task == current) {
 		asm volatile("lea (%%rip), %0\n\t"
 			     "mov %%rsp, %1\n\t"
