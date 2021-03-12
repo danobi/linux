@@ -71,6 +71,12 @@ static inline long regs_return_value(struct pt_regs *regs)
 		return -regs->r8;
 }
 
+static inline void instruction_pointer_set(struct pt_regs *regs, unsigned long val)
+{
+	ia64_psr(regs)->ri = (val & 0xf);
+	regs->cr_iip = (val & ~0xfULL);
+}
+
 /* Conserve space in histogram by encoding slot bits in address
  * bits 2 and 3 rather than bits 0 and 1.
  */
