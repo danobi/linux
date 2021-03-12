@@ -346,37 +346,18 @@ int trace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...)
 }
 EXPORT_SYMBOL_GPL(trace_output_call);
 
-#ifdef CONFIG_KRETPROBES
-static inline const char *kretprobed(const char *name)
-{
-	static const char tramp_name[] = "kretprobe_trampoline";
-	int size = sizeof(tramp_name);
-
-	if (strncmp(tramp_name, name, size) == 0)
-		return "[unknown/kretprobe'd]";
-	return name;
-}
-#else
-static inline const char *kretprobed(const char *name)
-{
-	return name;
-}
-#endif /* CONFIG_KRETPROBES */
-
 void
 trace_seq_print_sym(struct trace_seq *s, unsigned long address, bool offset)
 {
 #ifdef CONFIG_KALLSYMS
-	char str[KSYM_SYMBOL_LEN];
-	const char *name;
+	char name[KSYM_SYMBOL_LEN];
 
 	if (offset)
-		sprint_symbol(str, address);
+		sprint_symbol(name, address);
 	else
-		kallsyms_lookup(address, NULL, NULL, NULL, str);
-	name = kretprobed(str);
+		kallsyms_lookup(address, NULL, NULL, NULL, name);
 
-	if (name && strlen(name)) {
+	if (strlen(name)) {
 		trace_seq_puts(s, name);
 		return;
 	}
