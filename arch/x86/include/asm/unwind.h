@@ -4,6 +4,7 @@
 
 #include <linux/sched.h>
 #include <linux/ftrace.h>
+#include <linux/llist.h>
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 
@@ -20,6 +21,9 @@ struct unwind_state {
 	bool signal, full_regs;
 	unsigned long sp, bp, ip;
 	struct pt_regs *regs, *prev_regs;
+#if defined(CONFIG_KRETPROBES)
+	struct llist_node *kr_iter;
+#endif
 #elif defined(CONFIG_UNWINDER_FRAME_POINTER)
 	bool got_irq;
 	unsigned long *bp, *orig_sp, ip;

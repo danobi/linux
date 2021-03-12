@@ -2,6 +2,7 @@
 #include <linux/objtool.h>
 #include <linux/module.h>
 #include <linux/sort.h>
+#include <linux/kprobes.h>
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 #include <asm/unwind.h>
@@ -536,6 +537,21 @@ bool unwind_next_frame(struct unwind_state *state)
 
 		state->ip = ftrace_graph_ret_addr(state->task, &state->graph_idx,
 						  state->ip, (void *)ip_p);
+		/*
+		 * When the stack unwinder is called from the kretprobe handler
+		 * or the interrupt handler which occurs in the kretprobe
+		 * trampoline code, %sp is shown on the stack instead of the
+		 * return address because kretprobe_trampoline() does
+		 * "push %sp" at first.
+		 * And also the unwinder may find the kretprobe_trampoline
+		 * instead of the real return address on stack.
+		 * In those cases, find the correct return address from
+		 * task->kretprobe_instances list.
+		 */
+		if (state->ip == sp ||
+		    is_kretprobe_trampoline(state->ip))
+			state->ip = kretprobe_find_ret_addr(state->task,
+							    &state->kr_iter);
 
 		state->sp = sp;
 		state->regs = NULL;
