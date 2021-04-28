@@ -1526,9 +1526,19 @@ const struct bpf_prog_ops raw_tracepoint_prog_ops = {
 #endif
 };
 
+BTF_SET_START(tracing_kfunc_ids)
+BTF_ID(func, thread_group_cputime_adjusted)
+BTF_SET_END(tracing_kfunc_ids)
+
+static bool tracing_check_kfunc_call(u32 kfunc_btf_id)
+{
+	return btf_id_set_contains(&tracing_kfunc_ids, kfunc_btf_id);
+}
+
 const struct bpf_verifier_ops tracing_verifier_ops = {
-	.get_func_proto  = tracing_prog_func_proto,
-	.is_valid_access = tracing_prog_is_valid_access,
+	.get_func_proto		= tracing_prog_func_proto,
+	.is_valid_access	= tracing_prog_is_valid_access,
+	.check_kfunc_call	= tracing_check_kfunc_call,
 };
 
 const struct bpf_prog_ops tracing_prog_ops = {
