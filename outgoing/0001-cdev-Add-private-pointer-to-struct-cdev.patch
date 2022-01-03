@@ -1,0 +1,90 @@
+From 34157f5e8dbaa1063dd76608e1e57244305460e8 Mon Sep 17 00:00:00 2001
+Message-Id: <34157f5e8dbaa1063dd76608e1e57244305460e8.1641185192.git.dxu@dxuuu.xyz>
+In-Reply-To: <cover.1641185192.git.dxu@dxuuu.xyz>
+References: <cover.1641185192.git.dxu@dxuuu.xyz>
+From: Daniel Xu <dxu@dxuuu.xyz>
+Date: Sun, 2 Jan 2022 20:00:05 -0800
+Subject: [RFC char-misc-next 1/2] cdev: Add private pointer to struct cdev
+To: arnd@arndb.de,gregkh@linuxfoundation.org,giometti@enneenne.com,linux-kernel@vger.kernel.org
+Cc: thesven73@gmail.com,ojeda@kernel.org,
+
+struct cdev is a kobject managed struct, meaning kobject is ultimately
+responsible for deciding when the object is freed. Because kobject uses
+reference counts, it also means a cdev object isn't guaranteed to be
+cleaned up with a call to cdev_del() -- the cleanup may occur later.
+
+Unfortunately, this can result in subtle use-after-free bugs when struct
+cdev is embedded in another struct, and the larger struct is freed
+immediately after cdev_del(). For example:
+
+    struct contains_cdev {
+            struct cdev cdev;
+    }
+
+    void init(struct contains_cdev *cc) {
+            cdev_init(&cc->cdev);
+    }
+
+    void cleanup(struct contains_cdev *cc) {
+            cdev_del(&cc->cdev);
+            kfree(cc);
+    }
+
+This kind of code can reliably trigger a KASAN splat with
+CONFIG_KASAN=y and CONFIG_DEBUG_KOBJECT_RELEASE=y.
+
+A fairly palatable workaround is replacing cdev_init() with cdev_alloc()
+and storing a pointer instead. For example, this is totally fine:
+
+    struct contains_cdev_ptr {
+            struct cdev *cdev;
+    }
+
+    int init(struct contains_cdev_ptr *cc) {
+            cc->cdev = cdev_alloc();
+            if (!cc->cdev) {
+                    return -ENOMEM;
+            }
+
+            return 0;
+    }
+
+    void cleanup(struct contains_cdev_ptr *cc) {
+            cdev_del(cc->cdev);
+            kfree(cc);
+    }
+
+The only downside from this workaround (other than the extra allocation)
+is that container_of() upcasts no longer work. This is quite unfortunate
+for any code that implements struct file_operations and wants to store
+extra data with a struct cdev. With cdev_alloc() pointer, it's no longer
+possible to do something like:
+
+    struct contains_cdev *cc = container_of(inode->i_cdev,
+                                            struct contains_cdev,
+                                            cdev);
+
+Thus, I propose to add a void *private field to struct cdev so that
+callers can store a pointer to the containing struct instead of using
+container_of().
+
+Signed-off-by: Daniel Xu <dxu@dxuuu.xyz>
+---
+ include/linux/cdev.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/linux/cdev.h b/include/linux/cdev.h
+index 0e8cd6293deb..0e674e900512 100644
+--- a/include/linux/cdev.h
++++ b/include/linux/cdev.h
+@@ -18,6 +18,7 @@ struct cdev {
+ 	struct list_head list;
+ 	dev_t dev;
+ 	unsigned int count;
++	void *private;
+ } __randomize_layout;
+ 
+ void cdev_init(struct cdev *, const struct file_operations *);
+-- 
+2.34.1
+

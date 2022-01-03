@@ -1,0 +1,38 @@
+From bd7cb7db45c11f50495697ad23804a30a2e3b2d4 Mon Sep 17 00:00:00 2001
+Message-Id: <cover.1641185192.git.dxu@dxuuu.xyz>
+From: Daniel Xu <dxu@dxuuu.xyz>
+Date: Sun, 2 Jan 2022 20:46:32 -0800
+Subject: [RFC char-misc-next 0/2] Add private pointer to struct cdev
+To: arnd@arndb.de,gregkh@linuxfoundation.org,giometti@enneenne.com,linux-kernel@vger.kernel.org
+Cc: thesven73@gmail.com,ojeda@kernel.org,
+
+The details are explained more thoroughly in the actual commits, but the
+basic idea behind this RFC patchset is that:
+
+* Using cdev_init() on an embedded struct cdev can lead to subtle
+  use-after-free issues
+* Switching to cdev_alloc() and storing a pointer fixes the lifetime
+  issues but also breaks container_of()
+* Deal with container_of() breakage by adding a void *private field
+
+I've "fixed" (I'm aware module unloading is best-effort and may not
+constitute a "real" bug) the issue in a random driver I found that
+exhibits the issue. The other drivers I've seen with the issue are hard
+for me to load/unload, so just one for now.
+
+If this patchset is deemed acceptable, I'd be happy to convert other
+broken drivers I find, but with the understanding that the best I can do
+for testing is compiling them.
+
+Daniel Xu (2):
+  cdev: Add private pointer to struct cdev
+  pps: Fix use-after-free cdev bug on module unload
+
+ drivers/pps/pps.c          | 20 +++++++++++---------
+ include/linux/cdev.h       |  1 +
+ include/linux/pps_kernel.h |  2 +-
+ 3 files changed, 13 insertions(+), 10 deletions(-)
+
+-- 
+2.34.1
+
