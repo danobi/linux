@@ -6,6 +6,7 @@
  * are exposed through to BPF programs is explicitly unstable.
  */
 
+#include <linux/bpf_verifier.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/types.h>
@@ -14,6 +15,8 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_bpf.h>
 #include <net/netfilter/nf_conntrack_core.h>
+
+static const struct btf_type *nf_conn_type;
 
 /* bpf_ct_opts - Options for CT lookup helpers
  *
@@ -182,6 +185,53 @@ static struct nf_conn *__bpf_nf_ct_lookup(struct net *net,
 	opts->dir = NF_CT_DIRECTION(hash);
 
 	return ct;
+}
+
+/* Check writes into `struct nf_conn` */
+int nf_conntrack_btf_struct_access(struct bpf_verifier_log *log,
+				   const struct btf *btf,
+				   const struct btf_type *t, int off,
+				   int size, enum bpf_access_type atype,
+				   u32 *next_btf_id,
+				   enum bpf_type_flag *flag)
+{
+	const struct btf_type *nct = READ_ONCE(nf_conn_type);
+	s32 type_id;
+	size_t end;
+
+	if (!nct) {
+		type_id = btf_find_by_name_kind(btf, "nf_conn", BTF_KIND_STRUCT);
+		if (type_id < 0)
+			return -EINVAL;
+
+		nct = btf_type_by_id(btf, type_id);
+		WRITE_ONCE(nf_conn_type, nct);
+	}
+
+	if (t != nct) {
+		bpf_log(log, "only read is supported\n");
+		return -EACCES;
+	}
+
+	switch (off) {
+#if defined(CONFIG_NF_CONNTRACK_MARK)
+	case offsetof(struct nf_conn, mark):
+		end = offsetofend(struct nf_conn, mark);
+		break;
+#endif
+	default:
+		bpf_log(log, "no write support to nf_conn at off %d\n", off);
+		return -EACCES;
+	}
+
+	if (off + size > end) {
+		bpf_log(log,
+			"write access at off %d with size %d beyond the member of nf_conn ended at %zu\n",
+			off, size, end);
+		return -EACCES;
+	}
+
+	return NOT_INIT;
 }
 
 __diag_push();
