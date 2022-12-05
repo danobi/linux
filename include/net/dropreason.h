@@ -71,6 +71,7 @@
 	FN(DUP_FRAG)			\
 	FN(FRAG_REASM_TIMEOUT)		\
 	FN(FRAG_TOO_FAR)		\
+	FN(FRAG_BPF_EINVAL)		\
 	FNe(MAX)
 
 /**
@@ -312,6 +313,10 @@ enum skb_drop_reason {
 	 * (/proc/sys/net/ipv4/ipfrag_max_dist)
 	 */
 	SKB_DROP_REASON_FRAG_TOO_FAR,
+	/**
+	 * @SKB_DROP_REASON_FRAG_BPF_EINVAL: bad argument to bpf_ip_defrag().
+	 */
+	SKB_DROP_REASON_FRAG_BPF_EINVAL,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of drop reason, which shouldn't be
 	 * used as a real 'reason'
