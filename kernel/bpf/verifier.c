@@ -1236,6 +1236,7 @@ static int copy_verifier_state(struct bpf_verifier_state *dst_state,
 	}
 	dst_state->speculative = src->speculative;
 	dst_state->active_rcu_lock = src->active_rcu_lock;
+	dst_state->ctx_valid = src->ctx_valid;
 	dst_state->curframe = src->curframe;
 	dst_state->active_lock.ptr = src->active_lock.ptr;
 	dst_state->active_lock.id = src->active_lock.id;
@@ -4156,7 +4157,7 @@ static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off,
 		.log = &env->log,
 	};
 
-	if (env->ops->is_valid_access &&
+	if (env->cur_state->ctx_valid && env->ops->is_valid_access &&
 	    env->ops->is_valid_access(off, size, t, env->prog, &info)) {
 		/* A non zero info.ctx_field_size indicates that this field is a
 		 * candidate for later verifier transformation to load the whole
@@ -9033,6 +9034,18 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	if (btf_type_is_scalar(t)) {
 		mark_reg_unknown(env, regs, BPF_REG_0);
 		mark_btf_func_reg_size(env, BPF_REG_0, t->size);
+
+		if (is_kfunc_ret_consume(&meta)) {
+			if (!env->cur_state->ctx_valid) {
+				verbose(env, "nested call to maybe consumable kfunc\n");
+				return -EINVAL;
+			}
+
+			regs[BPF_REG_0].type |= MAY_CONSUME_CTX;
+			/* Invalidate ctx until RET_MAY_CONSUME_CTX is checked */
+			clear_all_pkt_pointers(env);
+			env->cur_state->ctx_valid = false;
+		}
 	} else if (btf_type_is_ptr(t)) {
 		ptr_type = btf_type_skip_modifiers(desc_btf, t->type, &ptr_type_id);
 
@@ -11721,6 +11734,11 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 		verbose(env, "R%d pointer comparison prohibited\n",
 			insn->dst_reg);
 		return -EACCES;
+	} else if (BPF_SRC(insn->code) == BPF_K && insn->imm == 0 &&
+		   (opcode == BPF_JEQ || opcode == BPF_JNE) &&
+		   type_may_consume(dst_reg->type)) {
+		this_branch->ctx_valid = opcode == BPF_JNE;
+		other_branch->ctx_valid = opcode == BPF_JEQ;
 	}
 	if (env->log.level & BPF_LOG_LEVEL)
 		print_insn_state(env, this_branch->frame[this_branch->curframe]);
@@ -16086,6 +16104,7 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 	state->curframe = 0;
 	state->speculative = false;
 	state->branches = 1;
+	state->ctx_valid = true;
 	state->frame[0] = kzalloc(sizeof(struct bpf_func_state), GFP_KERNEL);
 	if (!state->frame[0]) {
 		kfree(state);
