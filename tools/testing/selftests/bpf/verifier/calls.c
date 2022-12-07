@@ -272,6 +272,23 @@
 	.result = ACCEPT,
 },
 {
+	"calls: may_consume_ctx kfunc call: access ok in == 0 branch with run",
+	.insns = {
+	BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+	BPF_MOV64_IMM(BPF_REG_2, (-1L)),
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, BPF_PSEUDO_KFUNC_CALL, 0, 0),
+	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+	BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_6, 0),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	.fixup_kfunc_btf_id = {
+		{ "bpf_ip_defrag", 2 },
+	},
+	.result  = ACCEPT,
+},
+{
 	"calls: may_consume_ctx kfunc call: access denied in != 0 branch",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
