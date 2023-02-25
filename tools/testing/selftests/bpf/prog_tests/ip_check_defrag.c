@@ -173,6 +173,9 @@ void test_bpf_ip_check_defrag_ok(bool ipv6)
 	if (!ASSERT_OK(setup_topology(ipv6), "setup_topology"))
 		goto out;
 
+	/* XXX: REMOVE. Why does it take 2s for link to be ready? */
+	sleep(5);
+
 	if (!ASSERT_OK(attach(skel), "attach"))
 		goto out;
 
@@ -244,8 +247,11 @@ void test_bpf_ip_check_defrag_ok(bool ipv6)
 
 	/* Receive reassembled msg on server and echo back to client */
 	len = recvfrom(srv_fd, buf, sizeof(buf), 0, (struct sockaddr *)&caddr, &caddr_len);
-	if (!ASSERT_GE(len, 0, "server recvfrom"))
+	int saved_errno = errno;
+	if (!ASSERT_GE(len, 0, "server recvfrom")) {
+		fprintf(stderr, "server recvfrom errno=%s\n", strerror(saved_errno));
 		goto out;
+	}
 	len = sendto(srv_fd, buf, len, 0, (struct sockaddr *)&caddr, caddr_len);
 	if (!ASSERT_GE(len, 0, "server sendto"))
 		goto out;
