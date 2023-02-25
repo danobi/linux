@@ -41,6 +41,10 @@ static char log_buf[1024 * 1024];
 
 static int setup_topology(bool ipv6)
 {
+	bool veth0_up;
+	bool veth1_up;
+	int i;
+
 	SYS(fail, "ip netns add " NS0);
 	SYS(fail, "ip netns add " NS1);
 	SYS(fail, "ip link add " VETH0 " netns " NS0 " type veth peer name " VETH1 " netns " NS1);
@@ -53,6 +57,18 @@ static int setup_topology(bool ipv6)
 	}
 	SYS(fail, "ip -net " NS0 " link set dev " VETH0 " up");
 	SYS(fail, "ip -net " NS1 " link set dev " VETH1 " up");
+
+	/* Wait for up to 5s for links to come up */
+	for (i = 0; i < 50; ++i) {
+		veth0_up = !system("ip -net " NS0 " link show " VETH0 " | grep 'state UP'");
+		veth1_up = !system("ip -net " NS1 " link show " VETH1 " | grep 'state UP'");
+		if (veth0_up && veth1_up)
+			break;
+		usleep(100000);
+	}
+
+	if (!ASSERT_TRUE((veth0_up && veth1_up), "ifaces up"))
+		goto fail;
 
 	return 0;
 fail:
@@ -172,9 +188,6 @@ void test_bpf_ip_check_defrag_ok(bool ipv6)
 
 	if (!ASSERT_OK(setup_topology(ipv6), "setup_topology"))
 		goto out;
-
-	/* XXX: REMOVE. Why does it take 2s for link to be ready? */
-	sleep(5);
 
 	if (!ASSERT_OK(attach(skel), "attach"))
 		goto out;
