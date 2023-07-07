@@ -6696,6 +6696,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	err = btrfs_add_link(trans, BTRFS_I(dir), BTRFS_I(inode),
 			     &fname.disk_name, 1, index);
+	pr_warn("XXX: in %s, btrfs_add_link, err=%d\n", __FUNCTION__, err);
 
 	if (err) {
 		drop_inode = 1;

@@ -3000,8 +3000,10 @@ static inline int may_create(struct mnt_idmap *idmap,
 			     struct inode *dir, struct dentry *child)
 {
 	audit_inode_child(dir, child, AUDIT_TYPE_CHILD_CREATE);
-	if (child->d_inode)
+	if (child->d_inode) {
+		pr_warn("XXX: in %s, child->d_inode, -EEXIST\n", __FUNCTION__);
 		return -EEXIST;
+	}
 	if (IS_DEADDIR(dir))
 		return -ENOENT;
 	if (!fsuidgid_has_mapping(dir->i_sb, idmap))
@@ -4569,8 +4571,10 @@ int vfs_link(struct dentry *old_dentry, struct mnt_idmap *idmap,
 		error = may_delete(idmap, dir, new_dentry, new_is_dir);
 	else
 		error = may_create(idmap, dir, new_dentry);
-	if (error)
+	if (error) {
+		pr_warn("XXX: in %s, may_create()/may_create(), error=%d\n", __FUNCTION__, error);
 		return error;
+	}
 
 	if (dir->i_sb != inode->i_sb)
 		return -EXDEV;
@@ -4604,8 +4608,10 @@ int vfs_link(struct dentry *old_dentry, struct mnt_idmap *idmap,
 		error = -EMLINK;
 	else {
 		error = try_break_deleg(inode, delegated_inode);
-		if (!error)
+		if (!error) {
 			error = dir->i_op->link(old_dentry, dir, new_dentry);
+			pr_warn("XXX: in %s, ->link(), error=%d\n", __FUNCTION__, error);
+		}
 	}
 
 	if (!error && (inode->i_state & I_LINKABLE)) {
@@ -4682,6 +4688,7 @@ retry:
 		goto out_dput;
 	error = vfs_link(old_path.dentry, idmap, new_path.dentry->d_inode,
 			 new_dentry, &delegated_inode);
+	pr_warn("XXX: in %s, after vfs_link(), error=%d\n", __FUNCTION__, error);
 out_dput:
 	done_path_create(&new_path, new_dentry);
 	if (delegated_inode) {
@@ -4702,6 +4709,7 @@ out_putnames:
 	putname(old);
 	putname(new);
 
+	pr_warn("XXX: in %s, returning error=%d\n", __FUNCTION__, error);
 	return error;
 }
 
