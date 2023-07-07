@@ -3858,6 +3858,7 @@ static struct dentry *filename_create(int dfd, struct filename *name,
 	struct dentry *dentry = ERR_PTR(-EEXIST);
 	struct qstr last;
 	bool want_dir = lookup_flags & LOOKUP_DIRECTORY;
+	bool want_rename = lookup_flags & LOOKUP_RENAME_TARGET;
 	unsigned int reval_flag = lookup_flags & LOOKUP_REVAL;
 	unsigned int create_flags = LOOKUP_CREATE | LOOKUP_EXCL;
 	int type;
@@ -3890,7 +3891,7 @@ static struct dentry *filename_create(int dfd, struct filename *name,
 		goto unlock;
 
 	error = -EEXIST;
-	if (d_is_positive(dentry))
+	if (d_is_positive(dentry) && !want_rename)
 		goto fail;
 
 	/*
@@ -4556,12 +4557,18 @@ int vfs_link(struct dentry *old_dentry, struct mnt_idmap *idmap,
 {
 	struct inode *inode = old_dentry->d_inode;
 	unsigned max_links = dir->i_sb->s_max_links;
+	bool new_is_dir = d_is_dir(new_dentry);
 	int error;
 
 	if (!inode)
 		return -ENOENT;
 
-	error = may_create(idmap, dir, new_dentry);
+	/* Allow O_TMPFILE to overwrite existing file */
+	if (new_dentry->d_inode &&
+	    (old_dentry->d_inode->i_state & I_LINKABLE) && !new_is_dir)
+		error = may_delete(idmap, dir, new_dentry, new_is_dir);
+	else
+		error = may_create(idmap, dir, new_dentry);
 	if (error)
 		return error;
 
@@ -4629,6 +4636,7 @@ int do_linkat(int olddfd, struct filename *old, int newdfd,
 	struct dentry *new_dentry;
 	struct path old_path, new_path;
 	struct inode *delegated_inode = NULL;
+	unsigned int lookup_flags;
 	int how = 0;
 	int error;
 
@@ -4653,8 +4661,11 @@ retry:
 	if (error)
 		goto out_putnames;
 
-	new_dentry = filename_create(newdfd, new, &new_path,
-					(how & LOOKUP_REVAL));
+	lookup_flags = how & LOOKUP_REVAL;
+	if (d_inode(old_path.dentry)->i_state & I_LINKABLE)
+		lookup_flags |= LOOKUP_RENAME_TARGET;
+
+	new_dentry = filename_create(newdfd, new, &new_path, lookup_flags);
 	error = PTR_ERR(new_dentry);
 	if (IS_ERR(new_dentry))
 		goto out_putpath;
