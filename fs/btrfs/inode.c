@@ -6654,9 +6654,11 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct inode *inode = d_inode(old_dentry);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct fscrypt_name fname;
+	unsigned int trans_nr;
 	u64 index;
 	int err;
 	int drop_inode = 0;
+	bool tmpfile_overwrite = false;
 
 	/* do not allow sys_link's with other subvols of the same device */
 	if (root->root_key.objectid != BTRFS_I(inode)->root->root_key.objectid)
@@ -6678,8 +6680,13 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	 * 2 items for dir items
 	 * 1 item for parent inode
 	 * 1 item for orphan item deletion if O_TMPFILE
+	 * 1 item for dst item deletion if O_TMPFILE overwrite
 	 */
-	trans = btrfs_start_transaction(root, inode->i_nlink ? 5 : 6);
+	trans_nr = inode->i_nlink ? 5 : 6;
+	if (d_inode(dentry))
+		trans_nr++;
+
+	trans = btrfs_start_transaction(root, trans_nr);
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
 		trans = NULL;
@@ -6693,6 +6700,20 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	inode->i_ctime = current_time(inode);
 	ihold(inode);
 	set_bit(BTRFS_INODE_COPY_EVERYTHING, &BTRFS_I(inode)->runtime_flags);
+
+	/* Allow O_TMPFILE to overwrite existing file */
+	if (inode->i_nlink == 1 && dentry->d_inode) {
+		tmpfile_overwrite = true;
+		err = btrfs_unlink_inode(trans, BTRFS_I(d_inode(dentry->d_parent)),
+					 BTRFS_I(d_inode(dentry)),
+					 &fname.disk_name);
+		if (!err && d_inode(dentry)->i_nlink == 0)
+			err = btrfs_orphan_add(trans, BTRFS_I(d_inode(dentry)));
+		if (err) {
+			btrfs_abort_transaction(trans, err);
+			goto fail;
+		}
+	}
 
 	err = btrfs_add_link(trans, BTRFS_I(dir), BTRFS_I(inode),
 			     &fname.disk_name, 1, index);
@@ -6715,7 +6736,8 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 			if (err)
 				goto fail;
 		}
-		d_instantiate(dentry, inode);
+		if (!tmpfile_overwrite)
+			d_instantiate(dentry, inode);
 		btrfs_log_new_name(trans, old_dentry, NULL, 0, parent);
 	}
 
