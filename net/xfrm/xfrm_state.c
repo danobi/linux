@@ -1242,9 +1242,10 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 	}
 
 cached:
-	if (best)
+	if (best) {
+		cached = true;
 		goto found;
-	else if (error)
+	} else if (error)
 		best = NULL;
 	else if (acquire_in_progress) /* XXX: acquire_in_progress should not happen */
 		WARN_ON(1);
