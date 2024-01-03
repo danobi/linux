@@ -7802,6 +7802,10 @@ int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 {
 	enum btf_kfunc_hook hook;
 
+	/* All kfuncs need to be tagged as such in BTF */
+	if (WARN_ON(!(kset->set->flags & BTF_SET8_KFUNCS)))
+		return -EINVAL;
+
 	hook = bpf_prog_type_to_kfunc_hook(prog_type);
 	return __register_btf_kfunc_id_set(hook, kset);
 }
