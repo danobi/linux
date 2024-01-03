@@ -183,17 +183,21 @@ extern struct btf_id_set name;
  * .word (1 << 3) | (1 << 1) | (1 << 2)
  *
  */
-#define __BTF_SET8_START(name, scope)			\
+#define ___BTF_SET8_START(name, scope, flags)		\
 asm(							\
 ".pushsection " BTF_IDS_SECTION ",\"a\";       \n"	\
 "." #scope " __BTF_ID__set8__" #name ";        \n"	\
 "__BTF_ID__set8__" #name ":;                   \n"	\
-".zero 8                                       \n"	\
+".zero 4                                       \n"	\
+".long " #flags                               "\n"	\
 ".popsection;                                  \n");
 
-#define BTF_SET8_START(name)				\
+#define __BTF_SET8_START(name, scope, flags, ...)	\
+___BTF_SET8_START(name, scope, flags)
+
+#define BTF_SET8_START(name, ...)			\
 __BTF_ID_LIST(name, local)				\
-__BTF_SET8_START(name, local)
+__BTF_SET8_START(name, local, ##__VA_ARGS__, 0)
 
 #define BTF_SET8_END(name)				\
 asm(							\
@@ -214,7 +218,7 @@ extern struct btf_id_set8 name;
 #define BTF_SET_START(name) static struct btf_id_set __maybe_unused name = { 0 };
 #define BTF_SET_START_GLOBAL(name) static struct btf_id_set __maybe_unused name = { 0 };
 #define BTF_SET_END(name)
-#define BTF_SET8_START(name) static struct btf_id_set8 __maybe_unused name = { 0 };
+#define BTF_SET8_START(name, ...) static struct btf_id_set8 __maybe_unused name = { 0 };
 #define BTF_SET8_END(name)
 
 #endif /* CONFIG_DEBUG_INFO_BTF */
