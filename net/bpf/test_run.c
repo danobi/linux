@@ -617,7 +617,7 @@ CFI_NOSEAL(bpf_kfunc_call_memb_release_dtor);
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(bpf_test_modify_return_ids)
+BTF_SET8_START(bpf_test_modify_return_ids, BTF_SET8_KFUNC)
 BTF_ID_FLAGS(func, bpf_modify_return_test)
 BTF_ID_FLAGS(func, bpf_modify_return_test2)
 BTF_ID_FLAGS(func, bpf_fentry_test1, KF_SLEEPABLE)
@@ -628,7 +628,7 @@ static const struct btf_kfunc_id_set bpf_test_modify_return_set = {
 	.set   = &bpf_test_modify_return_ids,
 };
 
-BTF_SET8_START(test_sk_check_kfunc_ids)
+BTF_SET8_START(test_sk_check_kfunc_ids, BTF_SET8_KFUNC)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_memb_release, KF_RELEASE)
 BTF_SET8_END(test_sk_check_kfunc_ids)

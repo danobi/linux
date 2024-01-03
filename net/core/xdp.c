@@ -771,7 +771,7 @@ __bpf_kfunc int bpf_xdp_metadata_rx_vlan_tag(const struct xdp_md *ctx,
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(xdp_metadata_kfunc_ids)
+BTF_SET8_START(xdp_metadata_kfunc_ids, BTF_SET8_KFUNC)
 #define XDP_METADATA_KFUNC(_, __, name, ___) BTF_ID_FLAGS(func, name, KF_TRUSTED_ARGS)
 XDP_METADATA_KFUNC_xxx
 #undef XDP_METADATA_KFUNC

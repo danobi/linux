@@ -213,7 +213,7 @@ __bpf_kfunc s64 bpf_map_sum_elem_count(const struct bpf_map *map)
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(bpf_map_iter_kfunc_ids)
+BTF_SET8_START(bpf_map_iter_kfunc_ids, BTF_SET8_KFUNC)
 BTF_ID_FLAGS(func, bpf_map_sum_elem_count, KF_TRUSTED_ARGS)
 BTF_SET8_END(bpf_map_iter_kfunc_ids)
 

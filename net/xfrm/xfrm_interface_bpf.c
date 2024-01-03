@@ -93,7 +93,7 @@ __bpf_kfunc int bpf_skb_set_xfrm_info(struct __sk_buff *skb_ctx, const struct bp
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(xfrm_ifc_kfunc_set)
+BTF_SET8_START(xfrm_ifc_kfunc_set, BTF_SET8_KFUNC)
 BTF_ID_FLAGS(func, bpf_skb_get_xfrm_info)
 BTF_ID_FLAGS(func, bpf_skb_set_xfrm_info)
 BTF_SET8_END(xfrm_ifc_kfunc_set)

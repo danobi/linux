@@ -7769,6 +7769,9 @@ static int __register_btf_kfunc_id_set(enum btf_kfunc_hook hook,
 	struct btf *btf;
 	int ret, i;
 
+	/* All kfuncs need to be tagged as such in BTF */
+	WARN_ON(!(kset->set->flags & BTF_SET8_KFUNC));
+
 	btf = btf_get_module_btf(kset->owner);
 	if (!btf) {
 		if (!kset->owner && IS_ENABLED(CONFIG_DEBUG_INFO_BTF)) {

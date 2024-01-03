@@ -195,7 +195,7 @@ bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 	}
 }
 
-BTF_SET8_START(bpf_tcp_ca_check_kfunc_ids)
+BTF_SET8_START(bpf_tcp_ca_check_kfunc_ids, BTF_SET8_KFUNC)
 BTF_ID_FLAGS(func, tcp_reno_ssthresh)
 BTF_ID_FLAGS(func, tcp_reno_cong_avoid)
 BTF_ID_FLAGS(func, tcp_reno_undo_cwnd)

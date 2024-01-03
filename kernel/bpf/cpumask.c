@@ -424,7 +424,7 @@ __bpf_kfunc u32 bpf_cpumask_weight(const struct cpumask *cpumask)
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(cpumask_kfunc_btf_ids)
+BTF_SET8_START(cpumask_kfunc_btf_ids, BTF_SET8_KFUNC)
 BTF_ID_FLAGS(func, bpf_cpumask_create, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_cpumask_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_cpumask_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)

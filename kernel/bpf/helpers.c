@@ -2543,7 +2543,7 @@ __bpf_kfunc void bpf_throw(u64 cookie)
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(generic_btf_ids)
+BTF_SET8_START(generic_btf_ids, BTF_SET8_KFUNC)
 #ifdef CONFIG_KEXEC_CORE
 BTF_ID_FLAGS(func, crash_kexec, KF_DESTRUCTIVE)
 #endif
@@ -2588,7 +2588,7 @@ BTF_ID(struct, cgroup)
 BTF_ID(func, bpf_cgroup_release_dtor)
 #endif
 
-BTF_SET8_START(common_btf_ids)
+BTF_SET8_START(common_btf_ids, BTF_SET8_KFUNC)
 BTF_ID_FLAGS(func, bpf_cast_to_kern_ctx)
 BTF_ID_FLAGS(func, bpf_rdonly_cast)
 BTF_ID_FLAGS(func, bpf_rcu_read_lock)

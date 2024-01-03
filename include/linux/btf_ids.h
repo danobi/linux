@@ -8,6 +8,9 @@ struct btf_id_set {
 	u32 ids[];
 };
 
+/* This flag implies BTF_SET8 holds kfunc(s) */
+#define BTF_SET8_KFUNC		(1 << 0)
+
 struct btf_id_set8 {
 	u32 cnt;
 	u32 flags;
