@@ -17,6 +17,7 @@
 #include "test_ringbuf_n.lskel.h"
 #include "test_ringbuf_map_key.lskel.h"
 #include "test_ringbuf_write.lskel.h"
+#include "test_ringbuf_bpf_to_bpf.skel.h"
 
 #define EDONE 7777
 
@@ -497,6 +498,55 @@ cleanup:
 	test_ringbuf_map_key_lskel__destroy(skel_map_key);
 }
 
+static void ringbuf_bpf_to_bpf_subtest(void)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, tattr);
+	struct test_ringbuf_bpf_to_bpf *skel;
+	int prog_fd, err, i;
+	__u64 args[8] = {};
+
+	skel = test_ringbuf_bpf_to_bpf__open();
+	if (!ASSERT_OK_PTR(skel, "test_ringbuf_bpf_to_bpf__open"))
+		return;
+
+	bpf_map__set_max_entries(skel->maps.ringbuf, getpagesize());
+	err = test_ringbuf_bpf_to_bpf__load(skel);
+	if (!ASSERT_OK(err, "test_ringbuf_bpf_to_bpf__load"))
+		goto cleanup;
+
+	ringbuf = ring_buffer__new(bpf_map__fd(skel->maps.ringbuf), NULL, NULL, NULL);
+	if (!ASSERT_OK_PTR(ringbuf, "ring_buffer__new"))
+		goto cleanup;
+
+	/* Produce N_SAMPLES samples in the ring buffer */
+	prog_fd = bpf_program__fd(skel->progs.test_ringbuf_bpf_to_bpf_produce);
+	tattr.ctx_in = args;
+	tattr.ctx_size_in = sizeof(args);
+	for (i = 0; i < N_SAMPLES; i++) {
+		if (!ASSERT_OK(bpf_prog_test_run_opts(prog_fd, &tattr), "produce"))
+			goto cleanup_ringbuf;
+	}
+
+	/* Trigger bpf-side consumption */
+	prog_fd = bpf_program__fd(skel->progs.test_ringbuf_bpf_to_bpf_consume);
+	if (!ASSERT_OK(bpf_prog_test_run_opts(prog_fd, &tattr), "consume"))
+		goto cleanup_ringbuf;
+
+	/* Check correct number samples were consumed */
+	if (!ASSERT_EQ(skel->bss->round_tripped, N_SAMPLES, "round_tripped"))
+		goto cleanup_ringbuf;
+
+	/* Check all samples were consumed */
+	err = ring_buffer__consume(ringbuf);
+	if (!ASSERT_EQ(err, 0, "rb_consume"))
+		goto cleanup_ringbuf;
+
+cleanup_ringbuf:
+	ring_buffer__free(ringbuf);
+cleanup:
+	test_ringbuf_bpf_to_bpf__destroy(skel);
+}
+
 void test_ringbuf(void)
 {
 	if (test__start_subtest("ringbuf"))
@@ -507,4 +557,6 @@ void test_ringbuf(void)
 		ringbuf_map_key_subtest();
 	if (test__start_subtest("ringbuf_write"))
 		ringbuf_write_subtest();
+	if (test__start_subtest("ringbuf_bpf_to_bpf"))
+		ringbuf_bpf_to_bpf_subtest();
 }
