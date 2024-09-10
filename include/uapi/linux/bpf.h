@@ -5731,6 +5731,9 @@ union bpf_attr {
  *		the helper will skip the rest of the samples and return. Other
  *		return values are not used now, and will be rejected by the
  *		verifier.
+ *
+ *		This helper also works on BPF_MAP_TYPE_RINGBUF maps which
+ *		enables bpf-to-bpf producer/consumer.
  *	Return
  *		The number of drained samples if no error was encountered while
  *		draining samples, or 0 if no samples were present in the ring
