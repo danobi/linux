@@ -1839,15 +1839,6 @@ int main(int argc, char **argv)
 	env.stderr_saved = stderr;
 
 	env.has_testmod = true;
-	if (!env.list_test_names) {
-		/* ensure previous instance of the module is unloaded */
-		unload_bpf_testmod(verbose());
-
-		if (load_bpf_testmod(verbose())) {
-			fprintf(env.stderr_saved, "WARNING! Selftests relying on bpf_testmod.ko will be skipped.\n");
-			env.has_testmod = false;
-		}
-	}
 
 	/* initializing tests */
 	for (i = 0; i < prog_test_cnt; i++) {
