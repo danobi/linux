@@ -1834,6 +1834,7 @@ int main(int argc, char **argv)
 		}
 	} else if (argc == 2) {
 		unsigned int t = atoi(argv[arg]);
+		printf("XXX: t=%d, to=%d\n", t, to);
 
 		if (t < to) {
 			from = t;
