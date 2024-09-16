@@ -168,8 +168,16 @@ static void *array_map_lookup_elem(struct bpf_map *map, void *key)
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	u32 index = *(u32 *)key;
 
-	if (unlikely(index >= array->map.max_entries))
+	pr_warn("XXX: key=%u\n", index);
+
+	if (unlikely(index >= array->map.max_entries)) {
+		pr_warn("XXX: >= max entries=%d\n", array->map.max_entries);
 		return NULL;
+	}
+
+	pr_warn("XXX: array->value = %px\n", array->value);
+	pr_warn("XXX: array->elem_size = %u\n", array->elem_size);
+	pr_warn("XXX: masked index = %u\n", index & array->index_mask);
 
 	return array->value + (u64)array->elem_size * (index & array->index_mask);
 }
@@ -794,7 +802,6 @@ const struct bpf_map_ops array_map_ops = {
 	.map_lookup_elem = array_map_lookup_elem,
 	.map_update_elem = array_map_update_elem,
 	.map_delete_elem = array_map_delete_elem,
-	.map_gen_lookup = array_map_gen_lookup,
 	.map_direct_value_addr = array_map_direct_value_addr,
 	.map_direct_value_meta = array_map_direct_value_meta,
 	.map_mmap = array_map_mmap,

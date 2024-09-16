@@ -175,7 +175,6 @@ void test_verifier_lwt(void)                  { RUN(verifier_lwt); }
 void test_verifier_map_in_map(void)           { RUN(verifier_map_in_map); }
 void test_verifier_map_ptr(void)              { RUN(verifier_map_ptr); }
 void test_verifier_map_ptr_mixing(void)       { RUN(verifier_map_ptr_mixing); }
-void test_verifier_map_ret_val(void)          { RUN(verifier_map_ret_val); }
 void test_verifier_masking(void)              { RUN(verifier_masking); }
 void test_verifier_meta_access(void)          { RUN(verifier_meta_access); }
 void test_verifier_movsx(void)                 { RUN(verifier_movsx); }
@@ -267,4 +266,16 @@ void test_verifier_value_ptr_arith(void)
 	run_tests_aux("verifier_value_ptr_arith",
 		      verifier_value_ptr_arith__elf_bytes,
 		      init_value_ptr_arith_maps);
+}
+
+static int init_map_ret_val_maps(struct bpf_object *obj)
+{
+	return init_test_val_map(obj, "map_array");
+}
+
+void test_verifier_map_ret_val(void)
+{
+	run_tests_aux("verifier_map_ret_val",
+		      verifier_map_ret_val__elf_bytes,
+		      init_map_ret_val_maps);
 }

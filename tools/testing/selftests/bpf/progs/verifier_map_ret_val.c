@@ -6,12 +6,45 @@
 #include "../../../include/linux/filter.h"
 #include "bpf_misc.h"
 
+#define MAX_ENTRIES 11
+
+struct test_val {
+	unsigned int index;
+	int foo[MAX_ENTRIES];
+};
+
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 1);
 	__type(key, long long);
 	__type(value, long long);
 } map_hash_8b SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, struct test_val);
+} map_array SEC(".maps");
+
+/* __failure __msg("R0 invalid mem access 'map_value_or_null'") */
+SEC("socket")
+__description("assign null to validated map value")
+__success __retval(1)
+int assign_null_to_validated_value(void)
+{
+	struct test_val *val = NULL;
+	int zero = 0;
+
+	val = bpf_map_lookup_elem(&map_array, &zero);
+	if (val == NULL)
+	        return -2;
+
+	val = NULL;
+	val->index = 123;
+
+	return 1;
+}
 
 SEC("socket")
 __description("invalid map_fd for function call")
