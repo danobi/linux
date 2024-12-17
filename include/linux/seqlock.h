@@ -45,7 +45,7 @@ static inline void __seqcount_init(seqcount_t *s, const char *name,
 	 * Make sure we are not reinitializing a held lock:
 	 */
 	lockdep_init_map(&s->dep_map, name, key, 0);
-	s->sequence = 0;
+	WRITE_ONCE(s->sequence, 0);
 }
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -405,7 +405,7 @@ do {									\
 static inline void do_raw_write_seqcount_begin(seqcount_t *s)
 {
 	kcsan_nestable_atomic_begin();
-	s->sequence++;
+	WRITE_ONCE(s->sequence, READ_ONCE(s->sequence) + 1);
 	smp_wmb();
 }
 
@@ -426,7 +426,7 @@ do {									\
 static inline void do_raw_write_seqcount_end(seqcount_t *s)
 {
 	smp_wmb();
-	s->sequence++;
+	WRITE_ONCE(s->sequence, READ_ONCE(s->sequence) + 1);
 	kcsan_nestable_atomic_end();
 }
 
@@ -548,9 +548,9 @@ static inline void do_write_seqcount_end(seqcount_t *s)
 static inline void do_raw_write_seqcount_barrier(seqcount_t *s)
 {
 	kcsan_nestable_atomic_begin();
-	s->sequence++;
+	WRITE_ONCE(s->sequence, READ_ONCE(s->sequence) + 1);
 	smp_wmb();
-	s->sequence++;
+	WRITE_ONCE(s->sequence, READ_ONCE(s->sequence) + 1);
 	kcsan_nestable_atomic_end();
 }
 
@@ -569,7 +569,7 @@ static inline void do_write_seqcount_invalidate(seqcount_t *s)
 {
 	smp_wmb();
 	kcsan_nestable_atomic_begin();
-	s->sequence+=2;
+	WRITE_ONCE(s->sequence, READ_ONCE(s->sequence) + 2);
 	kcsan_nestable_atomic_end();
 }
 
@@ -673,7 +673,7 @@ read_seqcount_latch_retry(const seqcount_latch_t *s, unsigned start)
 static __always_inline void raw_write_seqcount_latch(seqcount_latch_t *s)
 {
 	smp_wmb();	/* prior stores before incrementing "sequence" */
-	s->seqcount.sequence++;
+	WRITE_ONCE(s->seqcount.sequence, READ_ONCE(s->seqcount.sequence) + 1);
 	smp_wmb();      /* increment "sequence" before following stores */
 }
 
